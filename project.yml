@@ -1,0 +1,48 @@
+name: LinkedInContactSync
+options:
+  bundleIdPrefix: com.linkedincontactsync
+  minimumXcodeGenVersion: "2.30.0"
+
+targets:
+  LinkedInContactSync-iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Contact Sync
+        UILaunchStoryboardName: ""
+        NSContactsUsageDescription: "Contact Sync needs access to your contacts to update job titles, companies, and photos from LinkedIn."
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        PRODUCT_BUNDLE_IDENTIFIER: com.linkedincontactsync.ios
+        DEVELOPMENT_TEAM: ""
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+  LinkedInContactSync-macOS:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: Sources
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Contact Sync
+        NSContactsUsageDescription: "Contact Sync needs access to your contacts to update job titles, companies, and photos from LinkedIn."
+        LSMinimumSystemVersion: "13.0"
+    entitlements:
+      path: Resources/macOS.entitlements
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        PRODUCT_BUNDLE_IDENTIFIER: com.linkedincontactsync.mac
+        DEVELOPMENT_TEAM: ""
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
