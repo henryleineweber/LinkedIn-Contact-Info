@@ -35,24 +35,19 @@ class ContactsService: ObservableObject {
         }
     }
 
-    // Fetches contacts from every container (local, iCloud, CardDAV…).
-    // Creates its own CNContactStore on the background thread — sharing the
-    // MainActor store across threads can cause silent empty results.
+    // Uses the shared store that was already registered with the contacts
+    // daemon during requestAccess. A fresh store instance created later
+    // silently returns nothing even when auth status is .authorized.
     func fetchContacts() async throws -> (contacts: [CNContact], containerCount: Int) {
-        let keys = Self.fetchKeys
-        return try await Task.detached(priority: .userInitiated) {
-            let bgStore = CNContactStore()
-            let containers = try bgStore.containers(matching: nil)
-            var contacts: [CNContact] = []
-            for container in containers {
-                let predicate = CNContact.predicateForContactsInContainer(withIdentifier: container.identifier)
-                let batch = try bgStore.unifiedContacts(matching: predicate, keysToFetch: keys)
-                contacts.append(contentsOf: batch)
-            }
-            var seen = Set<String>()
-            let deduped = contacts.filter { seen.insert($0.identifier).inserted }
-            return (deduped, containers.count)
-        }.value
+        let containers = try store.containers(matching: nil)
+        var contacts: [CNContact] = []
+        for container in containers {
+            let predicate = CNContact.predicateForContactsInContainer(withIdentifier: container.identifier)
+            let batch = try store.unifiedContacts(matching: predicate, keysToFetch: Self.fetchKeys)
+            contacts.append(contentsOf: batch)
+        }
+        var seen = Set<String>()
+        return (contacts.filter { seen.insert($0.identifier).inserted }, containers.count)
     }
 
     func apply(_ updates: [ContactUpdate]) throws {
