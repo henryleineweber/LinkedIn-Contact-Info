@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var contactsService = ContactsService()
+    @StateObject private var authService = LinkedInAuthService()
     @State private var updates: [ContactUpdate] = []
     @State private var phase: Phase = .import
     @State private var isWorking = false
@@ -13,9 +14,11 @@ struct ContentView: View {
         NavigationStack {
             switch phase {
             case .import:
-                ImportView { csvURL, photoFolderURL in
-                    await loadUpdates(csvURL: csvURL, photoFolderURL: photoFolderURL)
-                }
+                ImportView(authService: authService, onFetchFromAPI: {
+                    await loadFromAPI()
+                }, onImportCSV: { csvURL, photoFolderURL in
+                    await loadFromCSV(csvURL: csvURL, photoFolderURL: photoFolderURL)
+                })
             case .review:
                 ReviewView(updates: $updates, onApply: { await commitChanges() }, onBack: { phase = .import })
             case .done:
@@ -41,7 +44,55 @@ struct ContentView: View {
         }
     }
 
-    private func loadUpdates(csvURL: URL, photoFolderURL: URL?) async {
+    // MARK: - Load via LinkedIn API
+
+    private func loadFromAPI() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            guard let token = authService.accessToken else { return }
+            let api = LinkedInAPIService(accessToken: token)
+
+            let connectionsWithPhotos = try await api.fetchConnections()
+            let contacts = try contactsService.fetchContacts()
+            let connections = connectionsWithPhotos.map { $0.connection }
+            let matches = MatchingService.match(connections: connections, against: contacts)
+
+            var result: [ContactUpdate] = []
+            await withTaskGroup(of: ContactUpdate.self) { group in
+                for match in matches {
+                    let photoURL = connectionsWithPhotos.first(where: {
+                        $0.connection.fullName == match.connection.fullName
+                    })?.photoURL
+
+                    group.addTask {
+                        var update = ContactUpdate(contact: match.contact, connection: match.connection)
+                        if let url = photoURL {
+                            update.photoData = try? await api.downloadPhoto(from: url)
+                        }
+                        return update
+                    }
+                }
+                for await update in group {
+                    result.append(update)
+                }
+            }
+
+            updates = result.filter(\.hasChanges)
+            phase = .review
+        } catch {
+            // Surface auth errors so user can sign in again
+            if let apiError = error as? LinkedInAPIService.APIError,
+               case .unauthorized = apiError {
+                authService.signOut()
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Load via CSV (fallback)
+
+    private func loadFromCSV(csvURL: URL, photoFolderURL: URL?) async {
         isWorking = true
         defer { isWorking = false }
         do {
@@ -78,15 +129,12 @@ struct ContentView: View {
     }
 
     private func loadPhoto(for connection: LinkedInConnection, from folder: URL) -> Data? {
-        let names = [
-            connection.fullName,
-            "\(connection.lastName), \(connection.firstName)",
-        ]
-        let exts = ["jpg", "jpeg", "png", "heic", "heif"]
+        let names = [connection.fullName, "\(connection.lastName), \(connection.firstName)"]
         for name in names {
-            for ext in exts {
-                let url = folder.appendingPathComponent("\(name).\(ext)")
-                if let data = try? Data(contentsOf: url) { return data }
+            for ext in ["jpg", "jpeg", "png", "heic", "heif"] {
+                if let data = try? Data(contentsOf: folder.appendingPathComponent("\(name).\(ext)")) {
+                    return data
+                }
             }
         }
         return nil

@@ -16,6 +16,13 @@ targets:
         CFBundleDisplayName: Contact Sync
         UILaunchStoryboardName: ""
         NSContactsUsageDescription: "Contact Sync needs access to your contacts to update job titles, companies, and photos from LinkedIn."
+        CFBundleURLTypes:
+          - CFBundleURLName: com.linkedincontactsync.oauth
+            CFBundleURLSchemes:
+              - linkedincontactsync
+    dependencies:
+      - framework: AuthenticationServices.framework
+        implicit: true
     settings:
       base:
         SWIFT_VERSION: "5.9"
@@ -37,8 +44,15 @@ targets:
         CFBundleDisplayName: Contact Sync
         NSContactsUsageDescription: "Contact Sync needs access to your contacts to update job titles, companies, and photos from LinkedIn."
         LSMinimumSystemVersion: "13.0"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.linkedincontactsync.oauth
+            CFBundleURLSchemes:
+              - linkedincontactsync
     entitlements:
       path: Resources/macOS.entitlements
+    dependencies:
+      - framework: AuthenticationServices.framework
+        implicit: true
     settings:
       base:
         SWIFT_VERSION: "5.9"
