@@ -12,11 +12,21 @@ struct LinkedInImporter {
         _ = url.startAccessingSecurityScopedResource()
         defer { url.stopAccessingSecurityScopedResource() }
 
-        let content = try String(contentsOf: url, encoding: .utf8)
-        let rows = parseCSV(content)
-        guard let header = rows.first else { return [] }
+        var content = try String(contentsOf: url, encoding: .utf8)
+        // Strip UTF-8 BOM that LinkedIn sometimes includes
+        if content.hasPrefix("\u{FEFF}") { content = String(content.dropFirst()) }
 
-        let headers = header.map { $0.lowercased().trimmingCharacters(in: .whitespaces) }
+        let rows = parseCSV(content)
+
+        // LinkedIn CSVs often begin with a "Notes:" preamble before the real header row
+        guard let headerIndex = rows.firstIndex(where: { row in
+            let lower = row.map { $0.lowercased().trimmingCharacters(in: .whitespaces) }
+            return lower.contains("first name") || lower.contains("firstname")
+        }) else {
+            throw ImportError.missingColumns
+        }
+
+        let headers = rows[headerIndex].map { $0.lowercased().trimmingCharacters(in: .whitespaces) }
         func col(_ names: String...) -> Int? {
             names.lazy.compactMap { headers.firstIndex(of: $0) }.first
         }
@@ -34,7 +44,7 @@ struct LinkedInImporter {
             return row[i].trimmingCharacters(in: .whitespaces)
         }
 
-        return rows.dropFirst().compactMap { row in
+        return rows.dropFirst(headerIndex + 1).compactMap { row in
             let first = field(row, firstIdx)
             let last = field(row, lastIdx)
             guard !first.isEmpty || !last.isEmpty else { return nil }

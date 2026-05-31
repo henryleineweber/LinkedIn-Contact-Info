@@ -1,4 +1,5 @@
 import SwiftUI
+import Contacts
 
 struct ContentView: View {
     @StateObject private var contactsService = ContactsService()
@@ -38,9 +39,9 @@ struct ContentView: View {
             Text(errorMessage ?? "")
         }
         .task {
-            if contactsService.authorizationStatus == .notDetermined {
-                _ = await contactsService.requestAccess()
-            }
+            // Always call even if already authorized — initialises the
+            // store's connection to the Contacts daemon on macOS.
+            _ = await contactsService.requestAccess()
         }
     }
 
@@ -54,7 +55,12 @@ struct ContentView: View {
             let api = LinkedInAPIService(accessToken: token)
 
             let connectionsWithPhotos = try await api.fetchConnections()
-            let contacts = try contactsService.fetchContacts()
+            let (contacts, containerCount, containerNames) = try await contactsService.fetchContacts()
+            guard !contacts.isEmpty else {
+                let status = CNContactStore.authorizationStatus(for: .contacts)
+                errorMessage = "Contacts returned 0 (status:\(status.rawValue), containers:\(containerCount) [\(containerNames)])"
+                return
+            }
             let connections = connectionsWithPhotos.map { $0.connection }
             let matches = MatchingService.match(connections: connections, against: contacts)
 
@@ -97,8 +103,24 @@ struct ContentView: View {
         defer { isWorking = false }
         do {
             let connections = try LinkedInImporter.parse(url: csvURL)
-            let contacts = try contactsService.fetchContacts()
+            guard !connections.isEmpty else {
+                errorMessage = "No connections found in the CSV. Make sure you selected the Connections.csv file from your LinkedIn data export."
+                return
+            }
+
+            let (contacts, containerCount, containerNames) = try await contactsService.fetchContacts()
+            guard !contacts.isEmpty else {
+                let status = CNContactStore.authorizationStatus(for: .contacts)
+                errorMessage = "Contacts returned 0 (status:\(status.rawValue), containers:\(containerCount) [\(containerNames)])"
+                return
+            }
+
             let matches = MatchingService.match(connections: connections, against: contacts)
+            guard !matches.isEmpty else {
+                let sample = connections.prefix(3).map { "\($0.firstName) \($0.lastName)" }.joined(separator: ", ")
+                errorMessage = "Parsed \(connections.count) LinkedIn connections, found \(contacts.count) contacts, but nothing matched.\n\nSample LinkedIn names: \(sample)\n\nCheck that names on LinkedIn match how they're stored in your Contacts app."
+                return
+            }
 
             var result = matches.map { ContactUpdate(contact: $0.contact, connection: $0.connection) }
 
