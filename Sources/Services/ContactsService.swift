@@ -35,19 +35,17 @@ class ContactsService: ObservableObject {
         }
     }
 
-    // Uses the shared store that was already registered with the contacts
-    // daemon during requestAccess. A fresh store instance created later
-    // silently returns nothing even when auth status is .authorized.
-    func fetchContacts() async throws -> (contacts: [CNContact], containerCount: Int) {
+    func fetchContacts() async throws -> (contacts: [CNContact], containerCount: Int, containerNames: String) {
         let containers = try store.containers(matching: nil)
+        let containerNames = containers.map { "\($0.name):\($0.type.rawValue)" }.joined(separator: ", ")
+
+        // enumerateContacts spans all containers including iCloud — don't filter by container
         var contacts: [CNContact] = []
-        for container in containers {
-            let predicate = CNContact.predicateForContactsInContainer(withIdentifier: container.identifier)
-            let batch = try store.unifiedContacts(matching: predicate, keysToFetch: Self.fetchKeys)
-            contacts.append(contentsOf: batch)
+        let request = CNContactFetchRequest(keysToFetch: Self.fetchKeys)
+        try store.enumerateContacts(with: request) { contact, _ in
+            contacts.append(contact)
         }
-        var seen = Set<String>()
-        return (contacts.filter { seen.insert($0.identifier).inserted }, containers.count)
+        return (contacts, containers.count, containerNames)
     }
 
     func apply(_ updates: [ContactUpdate]) throws {
