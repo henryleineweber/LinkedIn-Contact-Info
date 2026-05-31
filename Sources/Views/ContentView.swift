@@ -52,10 +52,10 @@ struct ContentView: View {
                 return
             }
 
-            let contacts = try await contactsService.fetchContacts()
+            let (contacts, containerCount) = try await contactsService.fetchContacts()
             guard !contacts.isEmpty else {
                 let status = CNContactStore.authorizationStatus(for: .contacts)
-                errorMessage = "Contacts returned 0 entries (auth status: \(status.rawValue)). If status is 3 the permission is granted but no contacts were found — make sure your Mac's Contacts app has finished syncing with iCloud."
+                errorMessage = "Contacts returned 0 entries (auth status: \(status.rawValue), containers found: \(containerCount)). If status is 3 and containers > 0, open the Contacts app and confirm contacts are visible there."
                 return
             }
 

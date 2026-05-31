@@ -35,26 +35,23 @@ class ContactsService: ObservableObject {
         }
     }
 
-    // Fetches contacts from every container (local, iCloud, CardDAV, etc.)
-    // explicitly, rather than relying on enumerateContacts which silently
-    // returns nothing on macOS when contacts live in a non-default container.
-    func fetchContacts() async throws -> [CNContact] {
-        let store = self.store
+    // Fetches contacts from every container (local, iCloud, CardDAV…).
+    // Creates its own CNContactStore on the background thread — sharing the
+    // MainActor store across threads can cause silent empty results.
+    func fetchContacts() async throws -> (contacts: [CNContact], containerCount: Int) {
         let keys = Self.fetchKeys
         return try await Task.detached(priority: .userInitiated) {
+            let bgStore = CNContactStore()
+            let containers = try bgStore.containers(matching: nil)
             var contacts: [CNContact] = []
-
-            // Enumerate every visible container so iCloud contacts are included
-            let containers = try store.containers(matching: nil)
             for container in containers {
                 let predicate = CNContact.predicateForContactsInContainer(withIdentifier: container.identifier)
-                let batch = try store.unifiedContacts(matching: predicate, keysToFetch: keys)
+                let batch = try bgStore.unifiedContacts(matching: predicate, keysToFetch: keys)
                 contacts.append(contentsOf: batch)
             }
-
-            // Deduplicate by identifier in case contacts appear in multiple containers
             var seen = Set<String>()
-            return contacts.filter { seen.insert($0.identifier).inserted }
+            let deduped = contacts.filter { seen.insert($0.identifier).inserted }
+            return (deduped, containers.count)
         }.value
     }
 
