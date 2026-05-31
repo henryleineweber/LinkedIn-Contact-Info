@@ -46,8 +46,17 @@ struct ContentView: View {
         defer { isWorking = false }
         do {
             let connections = try LinkedInImporter.parse(url: csvURL)
+            guard !connections.isEmpty else {
+                errorMessage = "No connections found in the CSV. Make sure you selected the Connections.csv file from your LinkedIn data export."
+                return
+            }
+
             let contacts = try contactsService.fetchContacts()
             let matches = MatchingService.match(connections: connections, against: contacts)
+            guard !matches.isEmpty else {
+                errorMessage = "Parsed \(connections.count) LinkedIn connections but none matched contacts in your Contacts app. Check that names are consistent between LinkedIn and your contacts."
+                return
+            }
 
             var result = matches.map { ContactUpdate(contact: $0.contact, connection: $0.connection) }
 

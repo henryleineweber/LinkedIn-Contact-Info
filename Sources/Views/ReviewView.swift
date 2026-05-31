@@ -54,7 +54,7 @@ struct ReviewView: View {
                 .foregroundStyle(.green)
             Text("No Changes Found")
                 .font(.title2.bold())
-            Text("Your contacts already match your LinkedIn data.")
+            Text("All matched contacts already have the same job title and company as LinkedIn.")
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
