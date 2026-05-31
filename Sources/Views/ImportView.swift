@@ -33,14 +33,14 @@ struct ImportView: View {
                         detail: csvURL?.lastPathComponent ?? "No file selected",
                         icon: "doc.text.fill",
                         isSet: csvURL != nil,
-                        action: { showCSVPicker = true }
+                        action: { pickCSV() }
                     )
                     PickerCard(
                         title: "Photos Folder  (optional)",
                         detail: photoFolderURL?.lastPathComponent ?? "No folder selected",
                         icon: "folder.fill",
                         isSet: photoFolderURL != nil,
-                        action: { showFolderPicker = true }
+                        action: { pickFolder() }
                     )
                 }
                 .padding(.horizontal)
@@ -68,18 +68,39 @@ struct ImportView: View {
             }
         }
         .navigationTitle("Import")
-        .fileImporter(
-            isPresented: $showCSVPicker,
-            allowedContentTypes: [.commaSeparatedText, .plainText]
-        ) { result in
+        #if os(iOS)
+        .fileImporter(isPresented: $showCSVPicker, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
             csvURL = try? result.get()
         }
-        .fileImporter(
-            isPresented: $showFolderPicker,
-            allowedContentTypes: [.folder]
-        ) { result in
+        .fileImporter(isPresented: $showFolderPicker, allowedContentTypes: [.folder]) { result in
             photoFolderURL = try? result.get()
         }
+        #endif
+    }
+
+    private func pickCSV() {
+        #if os(macOS)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        if panel.runModal() == .OK { csvURL = panel.url }
+        #else
+        showCSVPicker = true
+        #endif
+    }
+
+    private func pickFolder() {
+        #if os(macOS)
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.folder]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        if panel.runModal() == .OK { photoFolderURL = panel.url }
+        #else
+        showFolderPicker = true
+        #endif
     }
 }
 
