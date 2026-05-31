@@ -5,6 +5,11 @@ import Contacts
 class ContactsService: ObservableObject {
     @Published var authorizationStatus: CNAuthorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
 
+    // Shared instance — Apple recommends reusing the store rather than
+    // creating a new one per fetch. A fresh instance can silently return
+    // zero contacts on macOS even when access is already authorized.
+    private let store = CNContactStore()
+
     private static let fetchKeys: [CNKeyDescriptor] = [
         CNContactGivenNameKey as CNKeyDescriptor,
         CNContactFamilyNameKey as CNKeyDescriptor,
@@ -16,27 +21,36 @@ class ContactsService: ObservableObject {
         CNContactImageDataAvailableKey as CNKeyDescriptor,
     ]
 
+    // Always call this on launch regardless of current status.
+    // Even when already authorized, the call initialises the store's
+    // connection to the Contacts daemon on macOS.
     func requestAccess() async -> Bool {
         do {
-            let granted = try await CNContactStore().requestAccess(for: .contacts)
+            let granted = try await store.requestAccess(for: .contacts)
             authorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
             return granted
         } catch {
+            authorizationStatus = CNContactStore.authorizationStatus(for: .contacts)
             return false
         }
     }
 
-    func fetchContacts() throws -> [CNContact] {
-        var contacts: [CNContact] = []
-        let request = CNContactFetchRequest(keysToFetch: Self.fetchKeys)
-        try CNContactStore().enumerateContacts(with: request) { contact, _ in
-            contacts.append(contact)
-        }
-        return contacts
+    // Runs on a background thread so the blocking enumerateContacts call
+    // does not stall the MainActor.
+    func fetchContacts() async throws -> [CNContact] {
+        let store = self.store
+        let keys = Self.fetchKeys
+        return try await Task.detached(priority: .userInitiated) {
+            var contacts: [CNContact] = []
+            let request = CNContactFetchRequest(keysToFetch: keys)
+            try store.enumerateContacts(with: request) { contact, _ in
+                contacts.append(contact)
+            }
+            return contacts
+        }.value
     }
 
     func apply(_ updates: [ContactUpdate]) throws {
-        let store = CNContactStore()
         let saveRequest = CNSaveRequest()
         var hasChanges = false
 

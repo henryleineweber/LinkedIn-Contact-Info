@@ -35,9 +35,9 @@ struct ContentView: View {
             Text(errorMessage ?? "")
         }
         .task {
-            if contactsService.authorizationStatus == .notDetermined {
-                _ = await contactsService.requestAccess()
-            }
+            // Always call even if already authorized — initialises the
+            // store's connection to the Contacts daemon on macOS.
+            _ = await contactsService.requestAccess()
         }
     }
 
@@ -51,7 +51,7 @@ struct ContentView: View {
                 return
             }
 
-            let contacts = try contactsService.fetchContacts()
+            let contacts = try await contactsService.fetchContacts()
             guard !contacts.isEmpty else {
                 errorMessage = "Contacts returned 0 entries. Check that the app has Contacts permission in System Settings → Privacy & Security → Contacts."
                 return
