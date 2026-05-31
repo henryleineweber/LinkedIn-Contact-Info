@@ -1,4 +1,5 @@
 import SwiftUI
+import Contacts
 
 struct ContentView: View {
     @StateObject private var contactsService = ContactsService()
@@ -53,7 +54,8 @@ struct ContentView: View {
 
             let contacts = try await contactsService.fetchContacts()
             guard !contacts.isEmpty else {
-                errorMessage = "Contacts returned 0 entries. Check that the app has Contacts permission in System Settings → Privacy & Security → Contacts."
+                let status = CNContactStore.authorizationStatus(for: .contacts)
+                errorMessage = "Contacts returned 0 entries (auth status: \(status.rawValue)). If status is 3 the permission is granted but no contacts were found — make sure your Mac's Contacts app has finished syncing with iCloud."
                 return
             }
 
