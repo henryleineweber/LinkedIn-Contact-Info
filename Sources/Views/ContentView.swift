@@ -52,9 +52,15 @@ struct ContentView: View {
             }
 
             let contacts = try contactsService.fetchContacts()
+            guard !contacts.isEmpty else {
+                errorMessage = "Contacts returned 0 entries. Check that the app has Contacts permission in System Settings → Privacy & Security → Contacts."
+                return
+            }
+
             let matches = MatchingService.match(connections: connections, against: contacts)
             guard !matches.isEmpty else {
-                errorMessage = "Parsed \(connections.count) LinkedIn connections but none matched contacts in your Contacts app. Check that names are consistent between LinkedIn and your contacts."
+                let sample = connections.prefix(3).map { "\($0.firstName) \($0.lastName)" }.joined(separator: ", ")
+                errorMessage = "Parsed \(connections.count) LinkedIn connections, found \(contacts.count) contacts, but nothing matched.\n\nSample LinkedIn names: \(sample)\n\nCheck that names on LinkedIn match how they're stored in your Contacts app."
                 return
             }
 
