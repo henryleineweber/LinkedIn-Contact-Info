@@ -62,7 +62,7 @@ struct MatchingService {
         let a = Array(a), b = Array(b)
         var row = Array(0...b.count)
         for i in 1...a.count {
-            var prev = row
+            let prev = row
             row[0] = i
             for j in 1...b.count {
                 row[j] = a[i-1] == b[j-1]
