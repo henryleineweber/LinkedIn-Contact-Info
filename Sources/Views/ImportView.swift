@@ -112,7 +112,7 @@ struct PickerCard: View {
                 Spacer()
 
                 Image(systemName: isSet ? "checkmark.circle.fill" : "chevron.right")
-                    .foregroundStyle(isSet ? .green : .quaternary)
+                    .foregroundStyle(isSet ? Color.green : Color.secondary)
             }
             .padding()
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
