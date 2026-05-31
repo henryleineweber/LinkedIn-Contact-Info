@@ -8,6 +8,7 @@ class ContactsService: ObservableObject {
     private static let fetchKeys: [CNKeyDescriptor] = [
         CNContactGivenNameKey as CNKeyDescriptor,
         CNContactFamilyNameKey as CNKeyDescriptor,
+        CNContactNicknameKey as CNKeyDescriptor,
         CNContactJobTitleKey as CNKeyDescriptor,
         CNContactOrganizationNameKey as CNKeyDescriptor,
         CNContactEmailAddressesKey as CNKeyDescriptor,
